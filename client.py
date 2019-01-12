@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+import rsa
 import socket
 import sys
 import os
@@ -39,11 +40,20 @@ class ClientApp(tk.Tk):
 
         self.file_list = tk.Listbox(self, selectmode='extended')
         self.file_list.pack()
-        for file in files("./src_files"):
-            self.file_list.insert(tk.END, file)
+        # for file in files("./src_files"):
+        #     self.file_list.insert(tk.END, file)
+        self.refresh_list(self.file_list)
         
-        self.send_file_button = tk.Button(text="Send File", command = lambda: self.send_file(self.file_list.get(self.file_list.curselection())) )
+        self.send_file_button = tk.Button(text="Send File", command=lambda: self.send_file(self.file_list.get(self.file_list.curselection())) )
         self.send_file_button.pack()
+
+        self.refresh_button = tk.Button(text="Refresh List", command=lambda: self.refresh_list(self.file_list) )
+        self.refresh_button.pack()
+
+    def refresh_list(self, listbox):
+        listbox.delete(0, tk.END)
+        for file in files("./src_files"):
+            listbox.insert(tk.END, file)
 
     def send_file(self, filename):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
