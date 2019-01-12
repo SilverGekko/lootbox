@@ -16,7 +16,8 @@ i = 0
 while True:
     conn, addr = s.accept()
     print("Connection address", addr)
-    f = open('files/file_server%d.txt' % i, 'wb') # w - open file for writing (truncates), b = binary mode
+    filename = conn.recv(64).rstrip(b'\0').decode('utf-8') # get the filename from the client and convert it to string
+    f = open('dest/' + filename, 'wb') # w - open file for writing (truncates), b = binary mode
     i += 1
     data = conn.recv(BUFFER_SIZE)
     while data:
