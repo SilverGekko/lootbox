@@ -2,6 +2,7 @@
 
 import socket
 import sys
+import rsa
 
 TCP_IP = '127.0.0.1'
 TCP_PORT = 5003
@@ -21,7 +22,8 @@ while True:
     i += 1
     data = conn.recv(BUFFER_SIZE)
     while data:
-        print("Received:", data)
+        print("Received:\nFilename: ", filename)
+        print("Received:\nData: ", data)
         f.write(data)
         data = conn.recv(1024)
     f.close()
