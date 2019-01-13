@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+import utils
 import rsa
 import socket
 import sys
@@ -11,6 +12,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5003
 BUFFER_SIZE = 1024
 MESSAGE = b"Message in a bottle"
+DIR = "src_files/"
 
 def files(path):  
     for file in os.listdir(path):
@@ -57,20 +59,41 @@ class ClientApp(tk.Tk):
 
     def send_file(self, filename):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((TCP_IP, TCP_PORT))
+            try:
+                s.connect((TCP_IP, TCP_PORT))
+            except ConnectionRefusedError:
+                print("Could not establish a connection to the server")
+                return
 
             #os.listdir("files")
             #filename = input()
 
-            f = open("src_files/" + filename, "rb") #r - open for reading, b - binary mode
-            s.send(bytes(filename, 'utf-8') + (b'\0' *  (64 - len(filename) ))) # send over the file name so the server knows what file to save
-            l = f.read(1024)
-            while l:
-                s.send(l)
+            f = open(DIR + filename, "rb") #r - open for reading, b - binary mode
+            #s.send(bytes(filename, 'utf-8') + (b'\0' *  (64 - len(filename) ))) # send over the filename json so the server knows what we want to send
+            json_to_send = utils.jsonify(DIR + filename)
+            # max json data size of 1024 bytes
+            # send the server the json data of the file(s) to be sent
+            s.send(bytes(json_to_send, 'utf-8') + (b'\0' *  (1024 - len(json_to_send) )))
+
+            # receive the server "yes send" or "no, already have the file" message
+            go_ahead = s.recv(1)
+            print(go_ahead)
+
+            if go_ahead == b'y': # yes send
+                print("inside yes")
+                # send the file
                 l = f.read(1024)
-                print("Sending:", l)
-                print(type(l))
-                print(not not l)
+                while l:
+                    s.send(l)
+                    l = f.read(1024)
+                    print("Sending:", l)
+                    print(type(l))
+                    print(not not l)
+            # else:
+            #     print("inside no")
+            #     # else don't send the file
+            #     pass
+
 
 if __name__ == "__main__":
     program = ClientApp()
