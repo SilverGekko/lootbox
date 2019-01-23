@@ -22,10 +22,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("Connection address", addr)
         json_file_data = json.loads(conn.recv(BUFFER_SIZE).rstrip(b'\0').decode('utf-8')) # get the json file data from the client and convert it to string
         print(json_file_data)
+
+        if not os.path.isdir(DIR):
+            os.mkdir(DIR)
+
         if (os.path.isfile(DIR + json_file_data["filename"]) and json_file_data["md5checksum"] != utils.md5(DIR + json_file_data["filename"])) or not os.path.isfile(DIR + json_file_data["filename"]):
             # TODO: send the 'go ahead' signal to the client to send the file
             conn.send(b'y')
-            with open('dest/' + json_file_data["filename"], 'wb') as f:# w - open file for writing (truncates), b = binary mode
+            with open('dest/' + json_file_data["filename"], 'wb') as f: # w - open file for writing (truncates), b = binary mode
                 data = conn.recv(BUFFER_SIZE)
                 while data:
                     print("Received:\nFilename: ", json_file_data["filename"])
@@ -34,6 +38,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     data = conn.recv(BUFFER_SIZE)
         else:
             # file with that name exists and has the same checksum, no need to send
-            # TODO: send the "don't send" signal to the client
+            # TODO: create a list of error codes to send to the client
             conn.send(b'n')
+            print("[SERVER]: Client tried to send duplicate filename \"%s\" with identical checksum \"%s\"" % (str(json_file_data["filename"]), str(json_file_data["md5checksum"])) )
         conn.close()

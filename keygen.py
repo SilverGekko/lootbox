@@ -1,9 +1,11 @@
 import rsa
+import os
+pid = os.getpid()
+length=4096
+pubkeyname = 'public%d.pem' % pid
+privkeyname = 'private%d.pem' % pid
 
-pubkeyname = 'public.pem'
-privkeyname = 'private.pem'
-
-pubkey, privkey = rsa.newkeys(4096)
+pubkey, privkey = rsa.newkeys(length)
 
 with open(pubkeyname, mode='wb') as publicfile:
     publicfile.write(rsa.PublicKey.save_pkcs1(pubkey))

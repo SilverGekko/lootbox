@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+import json
 import utils
 import rsa
 import socket
@@ -14,7 +15,7 @@ BUFFER_SIZE = 1024
 MESSAGE = b"Message in a bottle"
 DIR = "src_files/"
 
-def files(path):  
+def list_dir_files(path):  
     for file in os.listdir(path):
         if os.path.isfile(os.path.join(path, file)):
             yield file
@@ -22,6 +23,11 @@ def files(path):
 class ClientApp(tk.Tk):
     def __init__(self):
         super().__init__()
+
+        if not os.path.isdir(DIR):
+            os.mkdir(DIR)
+
+        self.connection_data = self.load_connection_data()
 
         self.title("Lootbox Client")
 
@@ -46,23 +52,65 @@ class ClientApp(tk.Tk):
         #     self.file_list.insert(tk.END, file)
         self.refresh_list(self.file_list)
         
-        self.send_file_button = tk.Button(text="Send File", command=lambda: self.send_file(self.file_list.get(self.file_list.curselection())) )
+        self.send_file_button = tk.Button(text="Send File", command=lambda: self.send_file(self.file_list.get(self.file_list.curselection()), self.connection_data) )
         self.send_file_button.pack()
 
         self.refresh_button = tk.Button(text="Refresh List", command=lambda: self.refresh_list(self.file_list) )
         self.refresh_button.pack()
 
-    def refresh_list(self, listbox):
-        listbox.delete(0, tk.END)
-        for file in files("./src_files"):
-            listbox.insert(tk.END, file)
+        self.server_connection_light = tk.Label(background='green4')
+        self.server_connection_light.pack(fill=tk.X)
 
-    def send_file(self, filename):
+    def ping_server(self, connection_data):
+        # big massive TODO:
+        # think about what makes sense:
+        #   - having the client connected to the server all the time
+        #   - having a connection be made for each file sent (current implementation)
+        #   - having the client connect and stay connected until a timeout happens, then diconnect regardless (good)
+        #   - having the client connect and stay connected until a timeout happens, then diconnect if no activity (good)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.connect((TCP_IP, TCP_PORT))
+                s.connect((connection_data["host"], connection_data["port"]))
             except ConnectionRefusedError:
-                print("Could not establish a connection to the server")
+                print("Could not establish a connection to the server at", connection_data)
+                return 1
+            return 0
+
+    def connection_light(self, light):
+        
+        self.after(2000, self.connection_light, light)
+
+    def load_connection_data(self):
+        """
+        Returns a dict full of the connection data from the parsed json config file.
+
+        If no file named 'connection.json' exists, it will be initialized with default values and created.
+        """
+        try:
+            json_data = open('connection.json', 'r')
+        except FileNotFoundError:
+            json_data = open('connection.json', 'w+')
+            data_dict = {
+                "name" : "local server",
+                "host" : "127.0.0.1",
+                "port" : 5003,
+            }
+            json.dump(data_dict, json_data)
+            json_data.seek(0) # go back to the beginning since we just wrote a bunch of data
+        connection_data = json.loads(json_data.read())
+        return connection_data
+
+    def refresh_list(self, listbox):
+        listbox.delete(0, tk.END)
+        for file in list_dir_files("./src_files"):
+            listbox.insert(tk.END, file)
+
+    def send_file(self, filename, connection_data):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.connect((connection_data["host"], connection_data["port"]))
+            except ConnectionRefusedError:
+                print("Could not establish a connection to the server at", connection_data)
                 return
 
             #os.listdir("files")
@@ -73,7 +121,7 @@ class ClientApp(tk.Tk):
             json_to_send = utils.jsonify(DIR + filename)
             # max json data size of 1024 bytes
             # send the server the json data of the file(s) to be sent
-            s.send(bytes(json_to_send, 'utf-8') + (b'\0' *  (1024 - len(json_to_send) )))
+            s.send(bytes(json_to_send, 'utf-8') + (b'\0' *  (BUFFER_SIZE - len(json_to_send) )))
 
             # receive the server "yes send" or "no, already have the file" message
             go_ahead = s.recv(1)
@@ -82,17 +130,17 @@ class ClientApp(tk.Tk):
             if go_ahead == b'y': # yes send
                 print("inside yes")
                 # send the file
-                l = f.read(1024)
+                l = f.read(BUFFER_SIZE)
                 while l:
                     s.send(l)
-                    l = f.read(1024)
+                    l = f.read(BUFFER_SIZE)
                     print("Sending:", l)
                     print(type(l))
                     print(not not l)
-            # else:
-            #     print("inside no")
-            #     # else don't send the file
-            #     pass
+            else:
+                print("[CLIENT]: Server said destination already contains a file with that name and checksum")
+                # else don't send the file
+                pass
 
 
 if __name__ == "__main__":
