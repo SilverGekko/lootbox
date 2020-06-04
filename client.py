@@ -31,6 +31,8 @@ class ClientApp(tk.Tk):
 
     self.connection_data = self.load_connection_data()
 
+    self.active_socket = None
+
     self.title("Lootbox Client")
 
     self.resizable(False, False)
@@ -54,16 +56,24 @@ class ClientApp(tk.Tk):
     #   self.file_list.insert(tk.END, file)
     self.refresh_list(self.file_list)
 
-    self.send_file_button = tk.Button(text="Send File", command=lambda: self.send_file(
-      self.file_list.get(self.file_list.curselection()), self.connection_data))
+    self.send_file_button = tk.Button(
+      text="Send File",
+      command=lambda: self.send_file(
+        self.file_list.get(self.file_list.curselection()), self.connection_data
+      )
+    )
     self.send_file_button.pack()
 
     self.refresh_button = tk.Button(
-      text="Refresh List", command=lambda: self.refresh_list(self.file_list))
+      text="Refresh List",
+      command=lambda: self.refresh_list(self.file_list)
+    )
     self.refresh_button.pack()
 
-    self.server_connection_light = tk.Label(background='green4')
+    self.server_connection_light = tk.Label(background='green3')
     self.server_connection_light.pack(fill=tk.X)
+
+    self.init_funcs()
 
   def ping_server(self, connection_data):
     # big massive TODO:
@@ -81,6 +91,10 @@ class ClientApp(tk.Tk):
       return 0
 
   def connection_light(self, light):
+    color = 'green3' if self.active_socket else 'firebrick3'
+    light.config(background=color)
+    # print(color)
+    # print(self.active_socket.fd)
     self.after(2000, self.connection_light, light)
 
   def load_connection_data(self):
@@ -117,6 +131,10 @@ class ClientApp(tk.Tk):
         print("Could not establish a connection to the server at", connection_data)
         return
 
+      self.active_socket = s
+
+      print (self.active_socket)
+
       # os.listdir("files")
       #filename = input()
 
@@ -146,6 +164,11 @@ class ClientApp(tk.Tk):
         print("[CLIENT]: Server said destination already contains a file with that name and checksum")
         # else don't send the file
         pass
+      
+      # self.active_socket = None
+
+  def init_funcs(self):
+    self.connection_light(self.server_connection_light)
 
 
 if __name__ == "__main__":
